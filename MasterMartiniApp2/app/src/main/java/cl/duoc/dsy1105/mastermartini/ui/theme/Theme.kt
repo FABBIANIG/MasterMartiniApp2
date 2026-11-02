@@ -1,11 +1,14 @@
 package cl.duoc.dsy1105.mastermartini.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 // Esquema de color oscuro accesible (Material 3 - IE 2.1.1)
 private val DarkColorScheme = darkColorScheme(
@@ -52,6 +55,11 @@ fun MasterMartiniAppTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = Shapes(
+            small = RoundedCornerShape(12.dp),
+            medium = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+            large = androidx.compose.foundation.shape.RoundedCornerShape(32.dp)
+        ),
         content = content
     )
 }

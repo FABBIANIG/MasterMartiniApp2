@@ -195,6 +195,7 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
                     Text(formState.errorNombre!!, color = MaterialTheme.colorScheme.error, fontSize = tamanoCuerpo)
                 }
             },
+            shape = RoundedCornerShape(24.dp),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -221,6 +222,7 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
             },
             visualTransformation = RutVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+            shape = RoundedCornerShape(24.dp),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -246,6 +248,7 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
                 }
             },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            shape = RoundedCornerShape(24.dp),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -272,6 +275,7 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
             },
             visualTransformation = PhoneVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            shape = RoundedCornerShape(24.dp),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -296,6 +300,7 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
                     Text(formState.errorDireccion!!, color = MaterialTheme.colorScheme.error, fontSize = tamanoCuerpo)
                 }
             },
+            shape = RoundedCornerShape(24.dp),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
