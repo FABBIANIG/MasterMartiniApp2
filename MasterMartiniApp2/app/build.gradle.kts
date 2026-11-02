@@ -58,6 +58,10 @@ dependencies {
     // 4. Persistencia Local con SQLite nativo + Gson (IE 2.3.1)
     implementation("com.google.code.gson:gson:2.11.0")
 
+    // 5. Media3 (ExoPlayer) para reproducción de video nativa
+    implementation("androidx.media3:media3-exoplayer:1.4.1")
+    implementation("androidx.media3:media3-ui:1.4.1")
+
     // Dependencias de pruebas y herramientas de vista previa
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

@@ -107,15 +107,15 @@ class MasterMartiniViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun onRutChange(nuevoRut: String) {
-        // Expresión regular para RUT chileno (ficticio/sintético, ej: 76.123.456-K o 12345678-9)
-        val rutRegex = Regex("^[0-9]{1,2}\\.?[0-9]{3}\\.?[0-9]{3}-[0-9kK]$")
+        // Como tenemos una máscara visual, el RUT ingresa como raw (ej: 76123456K)
+        val rutLimpio = nuevoRut.replace(Regex("[^0-9kK]"), "").uppercase()
         val error = when {
-            nuevoRut.isBlank() -> "El RUT de empresa/emprendedor es obligatorio"
-            !rutRegex.matches(nuevoRut.trim()) -> "Formato inválido. Ejemplo: 76.123.456-K"
+            rutLimpio.isBlank() -> "El RUT de empresa/emprendedor es obligatorio"
+            rutLimpio.length !in 8..9 -> "Formato inválido. Ingrese 8 o 9 caracteres"
             else -> null
         }
         _formularioState.update {
-            it.copy(rutEmpresa = nuevoRut, errorRut = error, guardadoExitoso = false)
+            it.copy(rutEmpresa = rutLimpio, errorRut = error, guardadoExitoso = false)
         }
     }
 
@@ -132,14 +132,15 @@ class MasterMartiniViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun onTelefonoChange(nuevoTelefono: String) {
+        // La máscara remueve +, por lo que validamos los dígitos raw
         val soloDigitos = nuevoTelefono.filter { it.isDigit() }
         val error = when {
-            nuevoTelefono.isBlank() -> "El teléfono de contacto es obligatorio"
+            soloDigitos.isBlank() -> "El teléfono de contacto es obligatorio"
             soloDigitos.length < 8 -> "Ingrese al menos 8 dígitos numéricos"
             else -> null
         }
         _formularioState.update {
-            it.copy(telefono = nuevoTelefono, errorTelefono = error, guardadoExitoso = false)
+            it.copy(telefono = soloDigitos, errorTelefono = error, guardadoExitoso = false)
         }
     }
 

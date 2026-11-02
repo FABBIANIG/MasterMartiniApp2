@@ -1,15 +1,14 @@
 package cl.duoc.dsy1105.mastermartini.ui.screens
 
-import android.graphics.Bitmap
+import android.content.Context
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.launch
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,17 +20,37 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import cl.duoc.dsy1105.mastermartini.model.CategoriaGastronomica
 import cl.duoc.dsy1105.mastermartini.viewmodel.MasterMartiniViewModel
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+/**
+ * Función auxiliar para crear Uris temporales
+ */
+fun createTempUri(context: Context, isVideo: Boolean = false): Uri {
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val folder = if (isVideo) "videos" else "images"
+    val storageDir = File(context.cacheDir, folder)
+    if (!storageDir.exists()) storageDir.mkdirs()
+    val suffix = if (isVideo) ".mp4" else ".jpg"
+    val file = File.createTempFile("MEDIA_${timeStamp}_", suffix, storageDir)
+    return FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
+}
 
 /**
  * Pantalla de Formulario de Segmentación de Clientes / Prospectos (Punto 3.2 del caso).
@@ -40,7 +59,7 @@ import cl.duoc.dsy1105.mastermartini.viewmodel.MasterMartiniViewModel
  * - IE 2.2.1: Toda la validación proviene reactivamente desde MasterMartiniViewModel.
  * - IE 2.2.2: Animaciones al mostrar alertas y confirmar el guardado.
  * - IE 2.3.1: Evidencia en pantalla los registros guardados en SQLite local.
- * - IE 2.4.1: Integra Recurso Nativo de Cámara Fotográfica (TakePicturePreview) y Galería.
+ * - IE 2.4.1: Integra Recurso Nativo de Cámara Fotográfica (alta calidad) y Galería.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -51,17 +70,30 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
     val textoGrande by viewModel.modoTextoGrande.collectAsState()
 
     val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
 
-    // Estado local para previsualizar el Bitmap capturado con la Cámara nativa
-    var fotoBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var tempVideoUri by remember { mutableStateOf<Uri?>(null) }
 
-    // RECURSO NATIVO 3: Lanzador seguro de Cámara Nativa sin requerir permisos invasivos (Punto 5.1 e IE 2.4.1)
+    // RECURSO NATIVO 3: Lanzador seguro de Cámara Nativa (Alta resolución)
     val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap: Bitmap? ->
-        if (bitmap != null) {
-            fotoBitmap = bitmap
-            viewModel.onFotoCapturada("foto_local_camara_${System.currentTimeMillis()}.jpg")
+        contract = ActivityResultContracts.TakePicture()
+    ) { success: Boolean ->
+        if (success) {
+            tempPhotoUri?.let { uri ->
+                viewModel.onFotoCapturada(uri.toString())
+            }
+        }
+    }
+
+    // RECURSO NATIVO 4: Lanzador seguro de Cámara de Video (Alta resolución)
+    val videoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CaptureVideo()
+    ) { success: Boolean ->
+        if (success) {
+            tempVideoUri?.let { uri ->
+                viewModel.onFotoCapturada(uri.toString())
+            }
         }
     }
 
@@ -145,7 +177,6 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
         // CAMPOS DEL FORMULARIO CON VALIDACIÓN VISUAL E ÍCONOS (IE 2.1.2)
         // =========================================================================
 
-        // 1. Campo Nombre Completo o Razón Social
         OutlinedTextField(
             value = formState.nombreCompleto,
             onValueChange = { viewModel.onNombreChange(it) },
@@ -170,11 +201,10 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // 2. Campo RUT Empresa / Emprendedor (Ficticio)
         OutlinedTextField(
             value = formState.rutEmpresa,
             onValueChange = { viewModel.onRutChange(it) },
-            label = { Text("RUT Empresa / Emprendedor (Ej: 76.123.456-K) *", fontSize = tamanoCuerpo) },
+            label = { Text("RUT Empresa / Emprendedor *", fontSize = tamanoCuerpo) },
             leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) },
             trailingIcon = {
                 if (formState.errorRut != null) {
@@ -189,13 +219,14 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
                     Text(formState.errorRut!!, color = MaterialTheme.colorScheme.error, fontSize = tamanoCuerpo)
                 }
             },
+            visualTransformation = RutVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // 3. Campo Correo Electrónico
         OutlinedTextField(
             value = formState.correo,
             onValueChange = { viewModel.onCorreoChange(it) },
@@ -221,11 +252,10 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // 4. Campo Teléfono de Contacto
         OutlinedTextField(
             value = formState.telefono,
             onValueChange = { viewModel.onTelefonoChange(it) },
-            label = { Text("Teléfono Móvil (Ej: +56912345678) *", fontSize = tamanoCuerpo) },
+            label = { Text("Teléfono Móvil *", fontSize = tamanoCuerpo) },
             leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
             trailingIcon = {
                 if (formState.errorTelefono != null) {
@@ -240,6 +270,7 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
                     Text(formState.errorTelefono!!, color = MaterialTheme.colorScheme.error, fontSize = tamanoCuerpo)
                 }
             },
+            visualTransformation = PhoneVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -247,7 +278,6 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // 5. Campo Dirección o Comuna del Local
         OutlinedTextField(
             value = formState.direccion,
             onValueChange = { viewModel.onDireccionChange(it) },
@@ -272,7 +302,6 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 6. Selección de Tipo de Negocio (Segmentación Punto 3.2)
         Text("Tipo de Negocio Gastronómico:", fontWeight = FontWeight.SemiBold, fontSize = tamanoCuerpo)
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -289,7 +318,6 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // 7. Selección de Tamaño del Negocio
         Text("Tamaño Aproximado del Negocio:", fontWeight = FontWeight.SemiBold, fontSize = tamanoCuerpo)
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -306,7 +334,6 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // 8. Encuesta de Intereses de Contenido Técnico (Validado)
         Text("Especialidades de Interés (Seleccione al menos 1) *:", fontWeight = FontWeight.SemiBold, fontSize = tamanoCuerpo)
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -343,7 +370,7 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Fotografía Referencial del Local o Especialidad (Opcional)",
+                    text = "Fotografía o Video Referencial del Local (Opcional)",
                     fontWeight = FontWeight.Bold,
                     fontSize = tamanoCuerpo
                 )
@@ -354,44 +381,51 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     OutlinedButton(
-                        onClick = { cameraLauncher.launch() },
+                        onClick = {
+                            val uri = createTempUri(context, isVideo = false)
+                            tempPhotoUri = uri
+                            cameraLauncher.launch(uri)
+                        },
                         modifier = Modifier
                             .weight(1f)
                             .heightIn(min = 50.dp)
                     ) {
                         Icon(Icons.Default.PhotoCamera, contentDescription = "Cámara")
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Usar Cámara", fontSize = tamanoCuerpo)
+                        Text("Cámara", fontSize = tamanoCuerpo)
                     }
 
                     OutlinedButton(
-                        onClick = { galleryLauncher.launch("image/*") },
+                        onClick = {
+                            val uri = createTempUri(context, isVideo = true)
+                            tempVideoUri = uri
+                            videoLauncher.launch(uri)
+                        },
                         modifier = Modifier
                             .weight(1f)
                             .heightIn(min = 50.dp)
                     ) {
-                        Icon(Icons.Default.PhotoLibrary, contentDescription = "Galería")
+                        Icon(Icons.Default.Videocam, contentDescription = "Video")
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Abrir Galería", fontSize = tamanoCuerpo)
+                        Text("Video", fontSize = tamanoCuerpo)
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { galleryLauncher.launch("image/*") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                ) {
+                    Icon(Icons.Default.PhotoLibrary, contentDescription = "Galería")
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Abrir Galería", fontSize = tamanoCuerpo)
+                }
 
-                // Muestra previsualización si capturó foto con la cámara
-                if (fotoBitmap != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Image(
-                        bitmap = fotoBitmap!!.asImageBitmap(),
-                        contentDescription = "Foto capturada",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(160.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                } else if (formState.fotoCapturadaUri != null) {
+                if (formState.fotoCapturadaUri != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "📎 Imagen adjuntada: ${formState.fotoCapturadaUri}",
+                        text = "📎 Archivo adjuntado: ${formState.fotoCapturadaUri}",
                         fontSize = tamanoCuerpo,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -405,10 +439,7 @@ fun RegistroClienteScreen(viewModel: MasterMartiniViewModel) {
         Button(
             onClick = {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                val exito = viewModel.validarYGuardarCliente()
-                if (exito) {
-                    fotoBitmap = null
-                }
+                viewModel.validarYGuardarCliente()
             },
             modifier = Modifier
                 .fillMaxWidth()

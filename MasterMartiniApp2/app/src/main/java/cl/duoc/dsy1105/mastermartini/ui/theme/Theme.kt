@@ -10,8 +10,16 @@ import androidx.compose.ui.graphics.Color
 // Esquema de color oscuro accesible (Material 3 - IE 2.1.1)
 private val DarkColorScheme = darkColorScheme(
     primary = MartiniRedLight,
+    onPrimary = MartiniDarkBg,
+    primaryContainer = MartiniBurgundy,
+    onPrimaryContainer = MartiniRedLight,
     secondary = MartiniCacaoLight,
-    tertiary = MartiniGoldLight
+    onSecondary = MartiniDarkBg,
+    tertiary = MartiniGoldLight,
+    background = MartiniDarkBg,
+    surface = MartiniDarkSurface,
+    onBackground = MartiniCreamBg,
+    onSurface = MartiniCreamBg
 )
 
 // Esquema de color corporativo claro con alto contraste para adultos mayores (Punto 3.3)
@@ -24,7 +32,9 @@ private val LightColorScheme = lightColorScheme(
     onSecondary = Color.White,
     tertiary = MartiniGold,
     background = MartiniCreamBg,
-    surface = Color.White
+    surface = MartiniSurface,
+    onBackground = MartiniDarkBg,
+    onSurface = MartiniDarkBg
 )
 
 /**

@@ -2,7 +2,6 @@ package cl.duoc.dsy1105.mastermartini.ui.screens
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -21,13 +21,14 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import cl.duoc.dsy1105.mastermartini.viewmodel.MasterMartiniViewModel
 
 /**
- * Pantalla de Detalle Técnico, Simulación de Video y Recursos Nativos (IE 2.1.1 e IE 2.4.1).
- * Integra:
- * - Recurso Nativo 1: Intent de Compartir Nativo (WhatsApp/Correo) + Vibración Háptica.
- * - Recurso Nativo 2: Intent de Marcador Telefónico Nativo para asistencia técnica.
+ * Pantalla de Detalle Técnico con Reproductor de Video ExoPlayer Real y Recursos Nativos.
  */
 @Composable
 fun DetalleContenidoScreen(
@@ -42,11 +43,25 @@ fun DetalleContenidoScreen(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
-    // Estado para simular el reproductor de video técnico (Punto 6 del caso)
-    var reproduciendoVideo by remember { mutableStateOf(false) }
-
     val tamanoTitulo = if (textoGrande) 24.sp else 20.sp
     val tamanoCuerpo = if (textoGrande) 19.sp else 15.sp
+
+    // ExoPlayer para el reproductor nativo
+    val exoPlayer = remember {
+        ExoPlayer.Builder(context).build().apply {
+            // URL pública de prueba para el video
+            val mediaItem = MediaItem.fromUri("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4")
+            setMediaItem(mediaItem)
+            prepare()
+        }
+    }
+
+    // Liberar ExoPlayer al desmontar
+    DisposableEffect(Unit) {
+        onDispose {
+            exoPlayer.release()
+        }
+    }
 
     if (contenido == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -75,54 +90,24 @@ fun DetalleContenidoScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Simulador de Reproductor de Video Técnico (Punto 6 del caso)
+        // Reproductor de Video Real (ExoPlayer)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp)
-                .background(Color(0xFF1E1E1E), shape = RoundedCornerShape(12.dp)),
+                .height(220.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.Black),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                IconButton(
-                    onClick = {
-                        // Retroalimentación háptica nativa al pulsar Play/Pausa (IE 2.4.1)
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        reproduciendoVideo = !reproduciendoVideo
-                    },
-                    modifier = Modifier.size(72.dp)
-                ) {
-                    Icon(
-                        imageVector = if (reproduciendoVideo) Icons.Default.PauseCircleFilled else Icons.Default.PlayCircleFilled,
-                        contentDescription = "Reproducir Video Técnico",
-                        tint = Color.White,
-                        modifier = Modifier.size(64.dp)
-                    )
-                }
-                Text(
-                    text = if (reproduciendoVideo) "Reproduciendo cápsula técnica (${contenido.duracionMinutos} min)..."
-                    else "Toca para reproducir el Video Técnico",
-                    color = Color.White,
-                    fontSize = tamanoCuerpo
-                )
-            }
-        }
-
-        // Animación al reproducir video (IE 2.2.2)
-        AnimatedVisibility(visible = reproduciendoVideo) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp)
-            ) {
-                Text(
-                    text = "🎥 Demostración en curso por ${contenido.chefAutor}",
-                    modifier = Modifier.padding(12.dp),
-                    fontSize = tamanoCuerpo,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        player = exoPlayer
+                        useController = true
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
